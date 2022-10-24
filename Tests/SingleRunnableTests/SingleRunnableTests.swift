@@ -38,12 +38,12 @@ final class SingleRunnableTests: XCTestCase {
     func test並列で２度実行した場合() async throws {
         let single = SingleTaskCounter()
         async let firstTask = Task { try await single.run(1) }
+        await Task.yield()
         async let secondTask = Task.detached { try await single.run(2) }
+        
         let firstResult = try await firstTask.value
         let secondResult = try await secondTask.value
-        while single.log.count < 3 {
-            print("待機中", single.log.count)
-        }
+        
         let times = single.log.keys.sorted()
         // Logの個数で並列で呼んだ場合に並列で同じ処理を実行できないことが確認できる
         XCTAssertEqual(times.count, 3, "Logは3つのみ（2回目は1回目の処理の結果を受け取るのでTaskを作成しない）")
