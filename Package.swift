@@ -6,7 +6,7 @@ let package = Package(
     name: "SingleRunnable",
     platforms: [
         .iOS(.v13),
-        .macOS(.v10_13),
+        .macOS(.v10_15),
         .tvOS(.v11),
         .watchOS(.v4),
     ],
