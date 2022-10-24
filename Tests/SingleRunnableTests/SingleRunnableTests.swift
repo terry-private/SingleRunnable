@@ -28,7 +28,7 @@ final class SingleRunnableTests: XCTestCase {
         func run(_ count: Int) async throws -> RunState {
             log[Date()] = .startRun(count)
             return try await Self.singleRun(name: "\(Self.self)") { [weak self] in
-                try await Task.sleep(nanoseconds: 100_000)
+                try await Task.sleep(nanoseconds: 100_000_000)
                 self?.log[Date()] = .endSleep(count)
                 return .endSleep(count)
             }
@@ -43,9 +43,9 @@ final class SingleRunnableTests: XCTestCase {
         
         let times = single.log.keys.sorted()
         // Logの順番を確認。2つともスタートしてから終了することで並列で処理されていることが確認できる。
-        XCTAssertEqual(single.log[times[0]]?.isStartState, true, "スタート")
-        XCTAssertEqual(single.log[times[1]]?.isStartState, true, "スタート")
-        XCTAssertEqual(single.log[times[2]]?.isStartState, false, "終了")
+        XCTAssertEqual(single.log[times[0]]?.isStartState, true, "Log1 start")
+        XCTAssertEqual(single.log[times[1]]?.isStartState, true, "Log2 start")
+        XCTAssertEqual(single.log[times[2]]?.isStartState, false, "Log3 end")
         
         // Logの個数で並列で呼んだ場合に並列で同じ処理を実行できないことが確認できる
         XCTAssertEqual(times.count, 3, "Logは3つのみ（2回目は1回目の処理の結果を受け取るのでTaskを作成しない）")
