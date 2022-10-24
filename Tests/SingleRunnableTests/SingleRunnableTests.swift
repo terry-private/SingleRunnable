@@ -28,6 +28,7 @@ final class SingleRunnableTests: XCTestCase {
         func run(_ count: Int) async throws -> RunState {
             log[Date()] = .startRun(count)
             return try await Self.singleRun(name: "\(Self.self)") { [weak self] in
+                try await Task.sleep(nanoseconds: 100_000)
                 self?.log[Date()] = .endSleep(count)
                 return .endSleep(count)
             }
@@ -55,8 +56,8 @@ final class SingleRunnableTests: XCTestCase {
         XCTAssertEqual(firstStartIndex, endIndex, "先にスタートしたIndexでResultが返る")
         
         // ２回目も１回目の結果が返ってきていることを確認
-        XCTAssertEqual(firstResult, .endSleep(endIndex))
-        XCTAssertEqual(secondResult, .endSleep(endIndex))
+        XCTAssertEqual(firstResult, .endSleep(endIndex), "1回目の呼び出し")
+        XCTAssertEqual(secondResult, .endSleep(endIndex), "2回目の呼び出し")
     }
     
     func test直列で2度実行した場合() async throws {
