@@ -42,14 +42,14 @@ final class SingleRunnableTests: XCTestCase {
         let (firstResult, secondResult) = try await (firstTask, secondTask)
         
         let times = single.log.keys.sorted()
+        // Logの個数で並列で呼んだ場合に並列で同じ処理を実行できないことが確認できる
+        XCTAssertEqual(times.count, 3, "Logは3つのみ（2回目は1回目の処理の結果を受け取るのでTaskを作成しない）")
+        
         // Logの順番を確認。2つともスタートしてから終了することで並列で処理されていることが確認できる。
         XCTAssertEqual(single.log[times[0]]?.isStartState, true, "Log1 start")
         XCTAssertEqual(single.log[times[1]]?.isStartState, true, "Log2 start")
         XCTAssertEqual(single.log[times[2]]?.isStartState, false, "Log3 end")
-        
-        // Logの個数で並列で呼んだ場合に並列で同じ処理を実行できないことが確認できる
-        XCTAssertEqual(times.count, 3, "Logは3つのみ（2回目は1回目の処理の結果を受け取るのでTaskを作成しない）")
-        
+                
         // 最初に実行した方のIndexとResultのIndexが一致すれば先に実行中のタスクを待っている挙動が確認できる。
         let firstStartIndex = try XCTUnwrap(single.log[times[0]]?.index)
         let endIndex = try XCTUnwrap(single.log[times[2]]?.index)
