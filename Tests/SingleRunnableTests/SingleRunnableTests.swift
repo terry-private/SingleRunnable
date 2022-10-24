@@ -5,6 +5,22 @@ final class SingleRunnableTests: XCTestCase {
     enum RunState: Hashable {
         case startRun(Int)
         case endSleep(Int)
+        var index: Int {
+            switch self {
+            case let .startRun(index):
+                return index
+            case let .endSleep(index):
+                return index
+            }
+        }
+        var isStartState: Bool {
+            switch self {
+            case .startRun:
+                return true
+            case .endSleep:
+                return false
+            }
+        }
     }
     
     class SingleTaskCounter: SingleRunnable {
@@ -24,16 +40,23 @@ final class SingleRunnableTests: XCTestCase {
         async let secondTask = single.run(2)
         let (firstResult, secondResult) = try await (firstTask, secondTask)
         
-        // Logの順番を確認。2回目スタート後に1回目が終了することで並列で処理されていることが確認できる。
         let times = single.log.keys.sorted()
-        XCTAssertEqual(single.log[times[0]], .startRun(1), "1回目スタート")
-        XCTAssertEqual(single.log[times[1]], .startRun(2), "2回目スタート")
-        XCTAssertEqual(single.log[times[2]], .endSleep(1), "1回目終了")
+        // Logの順番を確認。2つともスタートしてから終了することで並列で処理されていることが確認できる。
+        XCTAssertEqual(single.log[times[0]]?.isStartState, true, "スタート")
+        XCTAssertEqual(single.log[times[1]]?.isStartState, true, "スタート")
+        XCTAssertEqual(single.log[times[2]]?.isStartState, false, "終了")
+        
+        // Logの個数で並列で呼んだ場合に並列で同じ処理を実行できないことが確認できる
         XCTAssertEqual(times.count, 3, "Logは3つのみ（2回目は1回目の処理の結果を受け取るのでTaskを作成しない）")
         
+        // 最初に実行した方のIndexとResultのIndexが一致すれば先に実行中のタスクを待っている挙動が確認できる。
+        let firstStartIndex = try XCTUnwrap(single.log[times[0]]?.index)
+        let endIndex = try XCTUnwrap(single.log[times[2]]?.index)
+        XCTAssertEqual(firstStartIndex, endIndex, "先にスタートしたIndexでResultが返る")
+        
         // ２回目も１回目の結果が返ってきていることを確認
-        XCTAssertEqual(firstResult, .endSleep(1))
-        XCTAssertEqual(secondResult, .endSleep(1))
+        XCTAssertEqual(firstResult, .endSleep(endIndex))
+        XCTAssertEqual(secondResult, .endSleep(endIndex))
     }
     
     func test直列で2度実行した場合() async throws {
