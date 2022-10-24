@@ -28,6 +28,7 @@ final class SingleRunnableTests: XCTestCase {
         func run(_ count: Int) async throws -> RunState {
             log[Date()] = .startRun(count)
             return try await Self.singleRun(name: "\(Self.self)") { [weak self] in
+                try await Task.sleep(nanoseconds: 1_000_000_000)
                 self?.log[Date()] = .endSleep(count)
                 return .endSleep(count)
             }
