@@ -25,11 +25,11 @@ final class SingleRunnableTests: XCTestCase {
     
     class SingleTaskCounter: SingleRunnable {
         var log: [Date: RunState] = [:]
-        func run(_ count: Int) async throws -> RunState {
+        func run(_ count: Int, awaitMethod: (() async throws -> Void)? = nil) async throws -> RunState {
             log[Date()] = .startRun(count)
             return try await Self.singleRun(name: "\(Self.self)") { [weak self] in
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-                self?.log[Date()] = .endSleep(count)
+                try await awaitMethod?()
+                self!.log[Date()] = .endSleep(count)
                 return .endSleep(count)
             }
         }
@@ -37,12 +37,16 @@ final class SingleRunnableTests: XCTestCase {
     
     func test並列で２度実行した場合() async throws {
         let single = SingleTaskCounter()
-        async let firstTask = Task { try await single.run(1) }
-        await Task.yield()
-        async let secondTask = Task.detached { try await single.run(2) }
+        let awaitMethod: () async throws -> Void = {
+            while single.log.count < 2 {
+                await Task.yield()
+            }
+        }
+        async let firstTask = try await single.run(1, awaitMethod: awaitMethod)
+        async let secondTask = try await single.run(2, awaitMethod: awaitMethod)
         
-        let firstResult = try await firstTask.value
-        let secondResult = try await secondTask.value
+        let firstResult = try await firstTask
+        let secondResult = try await secondTask
         
         let times = single.log.keys.sorted()
         // Logの個数で並列で呼んだ場合に並列で同じ処理を実行できないことが確認できる
