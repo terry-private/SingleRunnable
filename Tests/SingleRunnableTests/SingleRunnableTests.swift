@@ -28,8 +28,10 @@ final class SingleRunnableTests: XCTestCase {
         func run(_ count: Int) async throws -> RunState {
             log[Date()] = .startRun(count)
             return try await Self.singleRun(name: "\(Self.self)") { [weak self] in
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-                self?.log[Date()] = .endSleep(count)
+                while self?.log.count ?? 0 < 2 {
+                    await Task.yield()
+                }
+                self!.log[Date()] = .endSleep(count)
                 return .endSleep(count)
             }
         }
@@ -38,7 +40,6 @@ final class SingleRunnableTests: XCTestCase {
     func test並列で２度実行した場合() async throws {
         let single = SingleTaskCounter()
         async let firstTask = Task { try await single.run(1) }
-        await Task.yield()
         async let secondTask = Task.detached { try await single.run(2) }
         
         let firstResult = try await firstTask.value
