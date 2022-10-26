@@ -7,7 +7,9 @@ final actor SingleRunCache {
     
     @discardableResult
     func run<T>(name: String, runner: @escaping () async throws -> T) async throws -> T {
+        print("🅰️start run")
         if tasks[name] == nil {
+            print("🅰️create")
             tasks[name] = Task { try await runner() }
         }
         let task = tasks[name] as! Task<T, Error>
