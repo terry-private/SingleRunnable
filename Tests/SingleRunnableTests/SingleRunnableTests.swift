@@ -50,19 +50,19 @@ final class SingleRunnableTests: XCTestCase {
     func test並列で２度実行した場合() async throws {
         let single = SingleTaskCounter()
         print("✨1", single.log.values)
-        async let firstTask = Task { try await single.run(1) }
+        async let firstTask = try await single.run(1)
         print("✨2", single.log.values)
         print("------------------------------yield!! at:", #line)
         await Task.yield()
         print("✨3", single.log.values)
-        async let secondTask = Task.detached { try await single.run(2) }
+        async let secondTask = try await single.run(2)
         print("✨4", single.log.values)
         print("------------------------------yield!! at:", #line)
         await Task.yield()
         print("✨5", single.log.values)
-        let firstResult = try await firstTask.value
+        let firstResult = try await firstTask
         print("✨6", single.log.values)
-        let secondResult = try await secondTask.value
+        let secondResult = try await secondTask
         print("✨7", single.log.values)
         
         let times = single.log.keys.sorted()
