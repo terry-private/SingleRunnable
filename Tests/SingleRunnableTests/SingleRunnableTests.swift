@@ -2,7 +2,7 @@ import XCTest
 @testable import SingleRunnable
 
 final class SingleRunnableTests: XCTestCase {
-    enum RunState: Hashable {
+    enum RunState: Hashable, CustomStringConvertible {
         case startRun(Int)
         case endSleep(Int)
         var index: Int {
@@ -21,14 +21,23 @@ final class SingleRunnableTests: XCTestCase {
                 return false
             }
         }
+        var description: String {
+            switch self {
+            case let .startRun(index):
+                return "startRun\(index)"
+            case let .endSleep(index):
+                return "endSleep\(index)"
+            }
+        }
     }
     
-    class SingleTaskCounter: SingleRunnable {
+    final class SingleTaskCounter: SingleRunnable {
         var log: [Date: RunState] = [:]
-        func run(_ count: Int) async throws -> RunState {
+        var runContinuation: CheckedContinuation<Void, Never>?
+        func run(_ count: Int, awaitMethod: (() async throws -> Void)? = nil) async throws -> RunState {
             log[Date()] = .startRun(count)
             return try await Self.singleRun(name: "\(Self.self)") { [weak self] in
-                try await Task.sleep(nanoseconds: 1_000_000_000)
+                try await awaitMethod?()
                 self?.log[Date()] = .endSleep(count)
                 return .endSleep(count)
             }
@@ -37,12 +46,20 @@ final class SingleRunnableTests: XCTestCase {
     
     func test並列で２度実行した場合() async throws {
         let single = SingleTaskCounter()
-        async let firstTask = Task { try await single.run(1) }
+        let awaitMethod: () async throws -> Void = {
+            await withCheckedContinuation { continuation in
+                single.runContinuation = continuation
+            }
+        }
+        async let firstTask = single.run(1, awaitMethod: awaitMethod)
         await Task.yield()
-        async let secondTask = Task.detached { try await single.run(2) }
         
-        let firstResult = try await firstTask.value
-        let secondResult = try await secondTask.value
+        async let secondTask = single.run(2, awaitMethod: awaitMethod)
+        await Task.yield()
+        
+        single.runContinuation!.resume()
+        let firstResult = try await firstTask
+        let secondResult = try await secondTask
         
         let times = single.log.keys.sorted()
         // Logの個数で並列で呼んだ場合に並列で同じ処理を実行できないことが確認できる
