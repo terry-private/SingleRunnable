@@ -2,7 +2,7 @@ import XCTest
 @testable import SingleRunnable
 
 final class SingleRunnableTests: XCTestCase {
-    enum RunState: Hashable {
+    enum RunState: Hashable, CustomStringConvertible {
         case startRun(Int)
         case endSleep(Int)
         var index: Int {
@@ -21,15 +21,26 @@ final class SingleRunnableTests: XCTestCase {
                 return false
             }
         }
+        var description: String {
+            switch self {
+            case let .startRun(index):
+                return "startRun\(index)"
+            case let .endSleep(index):
+                return "endSleep\(index)"
+            }
+        }
     }
     
     class SingleTaskCounter: SingleRunnable {
         var log: [Date: RunState] = [:]
         func run(_ count: Int, awaitMethod: (() async throws -> Void)? = nil) async throws -> RunState {
             log[Date()] = .startRun(count)
+            print(count, "❤️1", log.values)
             return try await Self.singleRun(name: "\(Self.self)") { [weak self] in
-                try await awaitMethod?()
-                self!.log[Date()] = .endSleep(count)
+                print(count, "❤️2", self?.log.values)
+                await Task.yield()
+                self?.log[Date()] = .endSleep(count)
+                print(count, "❤️3", self?.log.values)
                 return .endSleep(count)
             }
         }
@@ -37,16 +48,18 @@ final class SingleRunnableTests: XCTestCase {
     
     func test並列で２度実行した場合() async throws {
         let single = SingleTaskCounter()
-        let awaitMethod: () async throws -> Void = {
-            while single.log.count < 2 {
-                await Task.yield()
-            }
-        }
-        async let firstTask = try await single.run(1, awaitMethod: awaitMethod)
-        async let secondTask = try await single.run(2, awaitMethod: awaitMethod)
+        print("✨1", single.log.values)
+        async let firstTask = Task { try await single.run(1) }
+        print("✨2", single.log.values)
+        await Task.yield()
+        print("✨3", single.log.values)
+        async let secondTask = Task.detached { try await single.run(2) }
+        print("✨4", single.log.values)
         
-        let firstResult = try await firstTask
-        let secondResult = try await secondTask
+        let firstResult = try await firstTask.value
+        print("✨5", single.log.values)
+        let secondResult = try await secondTask.value
+        print("✨6", single.log.values)
         
         let times = single.log.keys.sorted()
         // Logの個数で並列で呼んだ場合に並列で同じ処理を実行できないことが確認できる
