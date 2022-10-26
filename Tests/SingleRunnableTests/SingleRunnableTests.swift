@@ -52,8 +52,8 @@ final class SingleRunnableTests: XCTestCase {
         print("✨1", single.log.values)
         async let firstTask = Task { try await single.run(1) }
         print("✨2", single.log.values)
-//        print("------------------------------yield!! at:", #line)
-//        await Task.yield()
+        print("------------------------------yield!! at:", #line)
+        await Task.yield()
         print("✨3", single.log.values)
         async let secondTask = Task.detached { try await single.run(2) }
         print("✨4", single.log.values)
