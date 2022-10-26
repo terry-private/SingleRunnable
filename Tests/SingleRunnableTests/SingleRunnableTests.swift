@@ -38,10 +38,7 @@ final class SingleRunnableTests: XCTestCase {
             log[Date()] = .startRun(count)
             print("💙\(count)-1", log.values)
             return try await Self.singleRun(name: "\(Self.self)") { [weak self] in
-                try await withCheckedContinuation { continuation in
-                    print("💙\(count)-2", self?.log.values)
-                    self?.runContinuation = continuation
-                }
+                try await awaitMethod?()
                 self?.log[Date()] = .endSleep(count)
                 print("💙\(count)-3", self?.log.values)
                 return .endSleep(count)
@@ -51,12 +48,17 @@ final class SingleRunnableTests: XCTestCase {
     
     func test並列で２度実行した場合() async throws {
         let single = SingleTaskCounter()
+        let awaitMethod: () async throws -> Void = {
+            await withCheckedContinuation { continuation in
+                single.runContinuation = continuation
+            }
+        }
         print("✨1", single.log.values)
-        async let firstTask = single.run(1)
+        async let firstTask = single.run(1, awaitMethod: awaitMethod)
         print("------------------------------yield!! at:", #line)
         await Task.yield()
         print("✨2", single.log.values)
-        async let secondTask = single.run(2)
+        async let secondTask = single.run(2, awaitMethod: awaitMethod)
         print("------------------------------yield!! at:", #line)
         await Task.yield()
         print("✨3", single.log.values)
@@ -67,9 +69,9 @@ final class SingleRunnableTests: XCTestCase {
         print("✨4", single.log.values)
         single.runContinuation!.resume()
         let firstResult = try await firstTask
-        print("✨6", single.log.values)
+        print("✨5", single.log.values)
         let secondResult = try await secondTask
-        print("✨7", single.log.values)
+        print("✨6", single.log.values)
         
         let times = single.log.keys.sorted()
         // Logの個数で並列で呼んだ場合に並列で同じ処理を実行できないことが確認できる
