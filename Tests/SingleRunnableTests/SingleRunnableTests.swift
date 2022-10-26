@@ -35,13 +35,17 @@ final class SingleRunnableTests: XCTestCase {
         var log: [Date: RunState] = [:]
         func run(_ count: Int, awaitMethod: (() async throws -> Void)? = nil) async throws -> RunState {
             log[Date()] = .startRun(count)
-            print("❤️\(count)-1", log.values)
+            print("💙\(count)-1", log.values)
             return try await Self.singleRun(name: "\(Self.self)") { [weak self] in
-                print("❤️\(count)-2", self?.log.values)
-                print("------------------------------yield!! at:", #line)
-                await Task.yield()
+                var yieldCount = 0
+                print("💙\(count)-2", self?.log.values)
+                while yieldCount < 10 && self?.log.count ?? 0 < 2 {
+                    print("-------------------------------------------------yield!! at:", yieldCount, self!.log.values)
+                    await Task.yield()
+                    yieldCount += 1
+                }
                 self?.log[Date()] = .endSleep(count)
-                print("❤️\(count)-3", self?.log.values)
+                print("💙\(count)-3", self?.log.values)
                 return .endSleep(count)
             }
         }
@@ -52,13 +56,13 @@ final class SingleRunnableTests: XCTestCase {
         print("✨1", single.log.values)
         async let firstTask = try await single.run(1)
         print("✨2", single.log.values)
-        print("------------------------------yield!! at:", #line)
-        await Task.yield()
+//        print("------------------------------yield!! at:", #line)
+//        await Task.yield()
         print("✨3", single.log.values)
         async let secondTask = try await single.run(2)
         print("✨4", single.log.values)
-        print("------------------------------yield!! at:", #line)
-        await Task.yield()
+//        print("------------------------------yield!! at:", #line)
+//        await Task.yield()
         print("✨5", single.log.values)
         let firstResult = try await firstTask
         print("✨6", single.log.values)
