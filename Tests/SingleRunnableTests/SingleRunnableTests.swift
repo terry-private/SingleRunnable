@@ -36,11 +36,9 @@ final class SingleRunnableTests: XCTestCase {
         var runContinuation: CheckedContinuation<Void, Never>?
         func run(_ count: Int, awaitMethod: (() async throws -> Void)? = nil) async throws -> RunState {
             log[Date()] = .startRun(count)
-            print("💙\(count)-1", log.values)
             return try await Self.singleRun(name: "\(Self.self)") { [weak self] in
                 try await awaitMethod?()
                 self?.log[Date()] = .endSleep(count)
-                print("💙\(count)-3", self?.log.values)
                 return .endSleep(count)
             }
         }
@@ -53,25 +51,15 @@ final class SingleRunnableTests: XCTestCase {
                 single.runContinuation = continuation
             }
         }
-        print("✨1", single.log.values)
         async let firstTask = single.run(1, awaitMethod: awaitMethod)
-        print("------------------------------yield!! at:", #line)
         await Task.yield()
-        print("✨2", single.log.values)
+        
         async let secondTask = single.run(2, awaitMethod: awaitMethod)
-        print("------------------------------yield!! at:", #line)
         await Task.yield()
-        print("✨3", single.log.values)
-        while single.runContinuation == nil {
-            print("------------------------------yield!! at:", #line)
-            await Task.yield()
-        }
-        print("✨4", single.log.values)
+        
         single.runContinuation!.resume()
         let firstResult = try await firstTask
-        print("✨5", single.log.values)
         let secondResult = try await secondTask
-        print("✨6", single.log.values)
         
         let times = single.log.keys.sorted()
         // Logの個数で並列で呼んだ場合に並列で同じ処理を実行できないことが確認できる
